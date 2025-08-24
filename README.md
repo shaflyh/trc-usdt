@@ -1,10 +1,41 @@
-# Sample TronBox Project
+# Test USDT Tron Token
 
-This is a bare-minimum TronBox project.
+A TRC-20 token implementation similar to USDT with administrative controls for the TRON blockchain.
+
+## Features
+
+- **TRC-20 Standard**: Full compliance with TRC-20 token standard
+- **Administrative Controls**: Owner can mint, burn, and pause transfers
+- **Multi-network Support**: Deploy to mainnet, Shasta, Nile testnets, or local development
+
+## Quick Start
+
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Set up Environment**
+   Create a `.env` file with your private keys:
+   ```
+   PRIVATE_KEY_NILE=your_nile_testnet_private_key
+   PRIVATE_KEY_SHASTA=your_shasta_testnet_private_key
+   PRIVATE_KEY_MAINNET=your_mainnet_private_key
+   ```
+
+3. **Deploy to Nile Testnet**
+   ```bash
+   tronbox migrate --network nile --reset
+   ```
+
+4. **Mint Tokens**
+   ```bash
+   node mint.js 1000000
+   ```
 
 ## Configuration
 
-Your configuration file is called `tronbox-config.js` and is located at the root of your project directory.
+Your configuration file is `tronbox.js` and contains network settings for different TRON networks.
 
 ## Compiling
 
@@ -63,20 +94,38 @@ To deploy your contracts to Localnet, you can run the following:
 tronbox migrate
 ```
 
-## Testing
+## Testing (Not working yet)
 
-To test your contracts, you can run the following:
+Run the test suite:
 
 ```shell
-tronbox test --network <mainnet|shasta|nile|development>
+npm test
 ```
 
-## Work with EVM
+Or test on a specific network:
 
-TronBox supports deploying contracts on EVM-compatible blockchains.
+```shell
+tronbox test --network <shasta|nile|development>
+```
 
-For more information, please refer to: https://developers.tron.network/reference/work-with-evm
+## Token Management
+
+After deployment, you can interact with your token:
+
+### Mint Tokens
+```bash
+cd tronweb
+node mint.js <amount>
+```
+
+### Contract Functions
+The USDT contract includes:
+- `issue(amount)` - Mint tokens (owner only)
+- `redeem(amount)` - Burn tokens (owner only)  
+- `pause()` / `unpause()` - Emergency stop functionality (owner only)
+- `transferOwnership(newOwner)` - Transfer contract ownership
 
 ## Additional Resources
 
-For further learning, visit the official TronBox site at https://tronbox.io
+- [TronBox Documentation](https://tronbox.io)
+- [TRON Developer Hub](https://developers.tron.network)
