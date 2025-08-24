@@ -23,8 +23,21 @@ tronbox migrate --network development --reset
 
 ### Token Interaction
 ```bash
-# Mint tokens (from tronweb directory - working command)
-cd tronweb && node mint.js 1000000
+# Token management commands (from tronweb directory - working commands)
+cd tronweb
+
+# Check contract status
+node manager.js status
+
+# Mint tokens 
+node manager.js mint 1000000
+
+# Transfer ownership
+node manager.js transfer-ownership <new_owner_address>
+
+# Pause/unpause contract
+node manager.js pause
+node manager.js unpause
 ```
 
 ### Testing
@@ -63,10 +76,16 @@ tronbox test --network <shasta|nile|development>
 - **Test Structure**: Deployment verification, administrative functions, TRC-20 compliance
 - **Key Pattern**: Deploy with `USDT.new()`, then get stable instance with `USDT.at(address)`
 
-### Token Management (`tronweb/mint.js`)
+### Token Management (`tronweb/manager.js`)
 - **TokenManager Class**: Encapsulates TronWeb initialization and contract interaction
+- **Commands Available**: 
+  - `status` - Check contract state, total supply, owner, paused status
+  - `mint <amount>` - Mint tokens with transaction confirmation
+  - `transfer-ownership <address>` - Transfer contract ownership
+  - `pause` - Pause all token transfers (owner only)
+  - `unpause` - Resume token transfers (owner only)
+- **Transaction Handling**: Includes confirmation polling and on-chain verification
 - **Environment Setup**: Requires `PRIVATE_KEY_NILE` and `CONTRACT_ADDRESS` in `.env`
-- **Mint Process**: Handles decimal conversion (6 decimals) and transaction submission
 - **Network**: Configured for Nile testnet by default
 
 ## Environment Setup
@@ -88,8 +107,16 @@ CONTRACT_ADDRESS=deployed_contract_address
 
 1. **Deploy Contract**: Use `tronbox migrate --network nile --reset`
 2. **Update Environment**: Add contract address to `tronweb/.env`
-3. **Test Token Functions**: Use `node mint.js <amount>` from `tronweb/` directory
-4. **Contract Verification**: Check deployment on TRONSCAN (Nile testnet)
+3. **Check Status**: Use `node manager.js status` to verify deployment
+4. **Test Token Functions**: Use `node manager.js mint <amount>` from `tronweb/` directory
+5. **Contract Verification**: Check deployment on TRONSCAN (Nile testnet)
+
+## Important Notes from Testing
+
+- Contract can be paused, which prevents minting/transfers
+- Ownership transfer works correctly (as shown in the transaction logs)
+- After ownership transfer, only the new owner can perform administrative functions
+- Transaction confirmation includes on-chain verification to detect reverted transactions
 
 ## Known Issues
 

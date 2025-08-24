@@ -28,9 +28,11 @@ A TRC-20 token implementation similar to USDT with administrative controls for t
    tronbox migrate --network nile --reset
    ```
 
-4. **Mint Tokens**
+4. **Interact with Token**
    ```bash
-   node mint.js 1000000
+   cd tronweb
+   node manager.js status
+   node manager.js mint 1000000
    ```
 
 ## Configuration
@@ -112,10 +114,22 @@ tronbox test --network <shasta|nile|development>
 
 After deployment, you can interact with your token:
 
-### Mint Tokens
+### Token Management Commands
 ```bash
 cd tronweb
-node mint.js <amount>
+
+# Check contract status and balances
+node manager.js status
+
+# Mint tokens
+node manager.js mint <amount>
+
+# Transfer ownership
+node manager.js transfer-ownership <new_owner_address>
+
+# Pause/unpause contract
+node manager.js pause
+node manager.js unpause
 ```
 
 ### Contract Functions
