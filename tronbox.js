@@ -39,7 +39,7 @@ module.exports = {
       // For tronbox/tre docker image
       // See https://hub.docker.com/r/tronbox/tre
       privateKey:
-        "44685230a3200c789962ead20811bb22f563fbdfc24ffa0652cea9fedc59806e",
+        "e60d13e1c50831135fcd7fb5072630efbcf6825af90b007f2cec3523118a3dbe",
       userFeePercentage: 0,
       feeLimit: 1000 * 1e6,
       fullHost: "http://127.0.0.1:9090",

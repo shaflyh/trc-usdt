@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test": "tronbox migrate --network development --reset && tronbox exec test/USDT.exec.js --network development"
+  },
   "dependencies": {
     "@openzeppelin/test-helpers": "^0.5.16",
     "dotenv": "^17.2.1"
