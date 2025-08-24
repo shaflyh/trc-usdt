@@ -4,7 +4,7 @@ module.exports = function (deployer, network, accounts) {
   console.log("Deploying USDT to network:", network);
   console.log("Deployer account:", accounts[0]);
 
-  const name = "USDT";
+  const name = "Tether USD";
   const symbol = "USDT";
   const decimals = 6;
 
