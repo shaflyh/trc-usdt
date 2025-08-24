@@ -1,9 +1,9 @@
 const { TronWeb } = require("tronweb");
 require("dotenv").config();
 
-/**
- * A manager class for interacting with the USDT TRC-20 token contract.
- */
+const POLLING_INTERVAL = 3000; // Check every 3 seconds
+const TIMEOUT = 60000; // Wait a maximum of 60 seconds
+
 class TokenManager {
   constructor() {
     this.tronWeb = null;
@@ -11,9 +11,6 @@ class TokenManager {
     this.ownerAddress = null;
   }
 
-  /**
-   * Initializes the TronWeb instance and loads the contract.
-   */
   async initialize() {
     const { PRIVATE_KEY_NILE, CONTRACT_ADDRESS } = process.env;
     if (!PRIVATE_KEY_NILE || !CONTRACT_ADDRESS) {
@@ -35,10 +32,6 @@ class TokenManager {
     console.log(`✅ Using owner account: ${this.ownerAddress}`);
   }
 
-  /**
-   * Logs a transaction hash and provides a link to the explorer.
-   * @param {string} txId The transaction hash.
-   */
   _logTransaction(txId) {
     console.log(`🎉 Transaction sent! Hash: ${txId}`);
     console.log(
@@ -47,9 +40,34 @@ class TokenManager {
   }
 
   /**
-   * Mints new tokens.
-   * @param {string} amount The human-readable amount to mint.
+   * Waits for a transaction to be confirmed on the blockchain.
+   * @param {string} txId The transaction hash to check.
+   * @returns {Promise<boolean>} True if the transaction succeeded, false if it failed.
    */
+  async _confirmTransaction(txId) {
+    console.log("⏳ Waiting for transaction confirmation...");
+    const startTime = Date.now();
+    while (Date.now() - startTime < TIMEOUT) {
+      try {
+        const txInfo = await this.tronWeb.trx.getTransactionInfo(txId);
+        if (txInfo && txInfo.receipt) {
+          // Check if receipt exists
+          if (txInfo.receipt.result === "SUCCESS") {
+            console.log("...Transaction confirmed successfully!");
+            return true;
+          } else {
+            console.error("...Transaction reverted on-chain!");
+            return false;
+          }
+        }
+      } catch (e) {
+        /* Ignore errors while polling */
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
+    }
+    throw new Error("Transaction confirmation timed out.");
+  }
+
   async mint(amount) {
     if (!amount || isNaN(amount))
       throw new Error("A valid amount must be provided for minting.");
@@ -62,12 +80,12 @@ class TokenManager {
       .issue(mintAmount.toString())
       .send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
+
+    if (!(await this._confirmTransaction(txId))) {
+      throw new Error("Minting transaction failed to confirm.");
+    }
   }
 
-  /**
-   * Burns (redeems) tokens from the owner's balance.
-   * @param {string} amount The human-readable amount to burn.
-   */
   async redeem(amount) {
     if (!amount || isNaN(amount))
       throw new Error("A valid amount must be provided for redeeming.");
@@ -80,30 +98,32 @@ class TokenManager {
       .redeem(redeemAmount.toString())
       .send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
+
+    if (!(await this._confirmTransaction(txId))) {
+      throw new Error("Redeem transaction failed to confirm.");
+    }
   }
 
-  /**
-   * Pauses the contract.
-   */
   async pause() {
     console.log("\nAttempting to pause the contract...");
     const txId = await this.contract.pause().send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
+
+    if (!(await this._confirmTransaction(txId))) {
+      throw new Error("Pause transaction failed to confirm.");
+    }
   }
 
-  /**
-   * Unpauses the contract.
-   */
   async unpause() {
     console.log("\nAttempting to unpause the contract...");
     const txId = await this.contract.unpause().send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
+
+    if (!(await this._confirmTransaction(txId))) {
+      throw new Error("Unpause transaction failed to confirm.");
+    }
   }
 
-  /**
-   * Transfers contract ownership to a new address.
-   * @param {string} newOwner The base58 address of the new owner.
-   */
   async transferOwnership(newOwner) {
     if (!newOwner || !this.tronWeb.isAddress(newOwner)) {
       throw new Error("A valid new owner address must be provided.");
@@ -113,6 +133,10 @@ class TokenManager {
       .transferOwnership(newOwner)
       .send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
+
+    if (!(await this._confirmTransaction(txId))) {
+      throw new Error("Transfer ownership transaction failed to confirm.");
+    }
   }
 
   /**
