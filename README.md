@@ -6,6 +6,7 @@ A TRC-20 token implementation similar to USDT with administrative controls for t
 
 - **TRC-20 Standard**: Full compliance with TRC-20 token standard
 - **Administrative Controls**: Owner can mint, burn, and pause transfers
+- **Blacklist Management**: Owner can blacklist addresses and destroy their funds
 - **Multi-network Support**: Deploy to mainnet, Shasta, Nile testnets, or local development
 
 ## Quick Start
@@ -130,6 +131,12 @@ node manager.js transfer-ownership <new_owner_address>
 # Pause/unpause contract
 node manager.js pause
 node manager.js unpause
+
+# Blacklist management
+node manager.js add-blacklist <address>
+node manager.js remove-blacklist <address>
+node manager.js check-blacklist <address>
+node manager.js destroy-black-funds <address>
 ```
 
 ### Contract Functions
@@ -138,6 +145,10 @@ The USDT contract includes:
 - `redeem(amount)` - Burn tokens (owner only)  
 - `pause()` / `unpause()` - Emergency stop functionality (owner only)
 - `transferOwnership(newOwner)` - Transfer contract ownership
+- `addBlacklist(address)` - Add address to blacklist (owner only)
+- `removeBlacklist(address)` - Remove address from blacklist (owner only)
+- `getBlacklistStatus(address)` - Check if address is blacklisted
+- `destroyBlackFunds(address)` - Destroy funds of blacklisted address (owner only)
 
 ## Additional Resources
 

@@ -42,7 +42,7 @@ class TokenManager {
   /**
    * Waits for a transaction to be confirmed on the blockchain.
    * @param {string} txId The transaction hash to check.
-   * @returns {Promise<boolean>} True if the transaction succeeded, false if it failed.
+   * @returns {Promise<string>} Returns 'success', 'failed', or 'timeout'.
    */
   async _confirmTransaction(txId) {
     console.log("⏳ Waiting for transaction confirmation...");
@@ -53,11 +53,11 @@ class TokenManager {
         if (txInfo && txInfo.receipt) {
           // Check if receipt exists
           if (txInfo.receipt.result === "SUCCESS") {
-            console.log("...Transaction confirmed successfully!");
-            return true;
+            console.log("✅ Transaction confirmed successfully!");
+            return "success";
           } else {
-            console.error("...Transaction reverted on-chain!");
-            return false;
+            console.error("❌ Transaction reverted on-chain!");
+            return "failed";
           }
         }
       } catch (e) {
@@ -65,8 +65,10 @@ class TokenManager {
       }
       await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
     }
-    console.error("Transaction confirmation timed out.");
-    return false;
+    console.log(
+      "Transaction confirmation timed out. Please check the transaction on the blockchain."
+    );
+    return "timeout";
   }
 
   async mint(amount) {
@@ -81,10 +83,6 @@ class TokenManager {
       .issue(mintAmount.toString())
       .send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
-
-    if (!(await this._confirmTransaction(txId))) {
-      throw new Error("Minting transaction failed to confirm.");
-    }
   }
 
   async redeem(amount) {
@@ -100,8 +98,9 @@ class TokenManager {
       .send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
 
-    if (!(await this._confirmTransaction(txId))) {
-      throw new Error("Redeem transaction failed to confirm.");
+    const result = await this._confirmTransaction(txId);
+    if (result === "failed") {
+      throw new Error("Redeem transaction failed on-chain.");
     }
   }
 
@@ -110,8 +109,9 @@ class TokenManager {
     const txId = await this.contract.pause().send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
 
-    if (!(await this._confirmTransaction(txId))) {
-      throw new Error("Pause transaction failed to confirm.");
+    const result = await this._confirmTransaction(txId);
+    if (result === "failed") {
+      throw new Error("Pause transaction failed on-chain.");
     }
   }
 
@@ -120,8 +120,9 @@ class TokenManager {
     const txId = await this.contract.unpause().send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
 
-    if (!(await this._confirmTransaction(txId))) {
-      throw new Error("Unpause transaction failed to confirm.");
+    const result = await this._confirmTransaction(txId);
+    if (result === "failed") {
+      throw new Error("Unpause transaction failed on-chain.");
     }
   }
 
@@ -135,8 +136,77 @@ class TokenManager {
       .send({ feeLimit: 100_000_000 });
     this._logTransaction(txId);
 
-    if (!(await this._confirmTransaction(txId))) {
-      throw new Error("Transfer ownership transaction failed to confirm.");
+    const result = await this._confirmTransaction(txId);
+    if (result === "failed") {
+      throw new Error("Transfer ownership transaction failed on-chain.");
+    }
+  }
+
+  async addBlacklist(address) {
+    if (!address || !this.tronWeb.isAddress(address)) {
+      throw new Error("A valid address must be provided for blacklisting.");
+    }
+    console.log(`\nAttempting to add ${address} to blacklist...`);
+    const txId = await this.contract
+      .addBlacklist(address)
+      .send({ feeLimit: 100_000_000 });
+    this._logTransaction(txId);
+
+    const result = await this._confirmTransaction(txId);
+    if (result === "failed") {
+      throw new Error("Add blacklist transaction failed on-chain.");
+    }
+  }
+
+  async removeBlacklist(address) {
+    if (!address || !this.tronWeb.isAddress(address)) {
+      throw new Error(
+        "A valid address must be provided for removing from blacklist."
+      );
+    }
+    console.log(`\nAttempting to remove ${address} from blacklist...`);
+    const txId = await this.contract
+      .removeBlacklist(address)
+      .send({ feeLimit: 100_000_000 });
+    this._logTransaction(txId);
+
+    const result = await this._confirmTransaction(txId);
+    if (result === "failed") {
+      throw new Error("Remove blacklist transaction failed on-chain.");
+    }
+  }
+
+  async getBlacklistStatus(address) {
+    if (!address || !this.tronWeb.isAddress(address)) {
+      throw new Error(
+        "A valid address must be provided to check blacklist status."
+      );
+    }
+    console.log(`\nChecking blacklist status for ${address}...`);
+    const isBlacklisted = await this.contract
+      .getBlacklistStatus(address)
+      .call();
+    console.log(
+      `Address ${address} is ${
+        isBlacklisted ? "BLACKLISTED" : "NOT BLACKLISTED"
+      }`
+    );
+    return isBlacklisted;
+  }
+
+  async destroyBlackFunds(address) {
+    if (!address || !this.tronWeb.isAddress(address)) {
+      throw new Error("A valid blacklisted address must be provided.");
+    }
+    console.log(`\nAttempting to destroy black funds for ${address}...`);
+    const txId = await this.contract
+      .destroyBlackFunds(address)
+      .send({ feeLimit: 100_000_000 });
+    this._logTransaction(txId);
+
+    const result = await this._confirmTransaction(txId);
+    if (result === "failed") {
+      throw new Error("Destroy black funds transaction failed on-chain.");
     }
   }
 
@@ -189,6 +259,18 @@ async function main() {
     console.log(
       "  transfer-ownership <newOwnerAddress> - Transfers contract ownership."
     );
+    console.log(
+      "  add-blacklist <address>           - Adds an address to the blacklist."
+    );
+    console.log(
+      "  remove-blacklist <address>        - Removes an address from the blacklist."
+    );
+    console.log(
+      "  check-blacklist <address>         - Checks if an address is blacklisted."
+    );
+    console.log(
+      "  destroy-black-funds <address>     - Destroys all funds of a blacklisted address."
+    );
     return;
   }
 
@@ -214,6 +296,18 @@ async function main() {
         break;
       case "transfer-ownership":
         await manager.transferOwnership(args[0]);
+        break;
+      case "add-blacklist":
+        await manager.addBlacklist(args[0]);
+        break;
+      case "remove-blacklist":
+        await manager.removeBlacklist(args[0]);
+        break;
+      case "check-blacklist":
+        await manager.getBlacklistStatus(args[0]);
+        break;
+      case "destroy-black-funds":
+        await manager.destroyBlackFunds(args[0]);
         break;
       default:
         console.error(`❌ Error: Unknown command "${command}"`);
