@@ -65,7 +65,8 @@ class TokenManager {
       }
       await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
     }
-    throw new Error("Transaction confirmation timed out.");
+    console.error("Transaction confirmation timed out.");
+    return false;
   }
 
   async mint(amount) {
