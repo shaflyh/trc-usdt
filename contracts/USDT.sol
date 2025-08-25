@@ -2,11 +2,7 @@
 pragma solidity ^0.8.6;
 
 /**
- * @title TRC-20 USDT-like Token
- * @dev A minimal viable product (MVP) of a TRC-20 token with features
- * similar to USDT, including administrative controls like minting, burning,
- * and pausing functionality.
- * This contract is intended for educational and demonstration purposes.
+ * @title TRC-20 USDT Token
  */
 interface ITRC20 {
     /**
@@ -86,6 +82,9 @@ contract USDT is ITRC20 {
     address public owner;
     bool public paused;
 
+    // Blacklist functionality
+    mapping(address => bool) public isBlacklisted;
+
     // --- Events ---
 
     event OwnershipTransferred(
@@ -96,6 +95,11 @@ contract USDT is ITRC20 {
     event Redeem(uint256 amount);
     event Pause();
     event Unpause();
+
+    // Blacklist events
+    event AddedBlacklist(address indexed user);
+    event RemovedBlacklist(address indexed user);
+    event DestroyedBlackFunds(address indexed blacklistedUser, uint256 balance);
 
     // --- Modifiers ---
 
@@ -111,6 +115,11 @@ contract USDT is ITRC20 {
 
     modifier validAddress(address addr) {
         require(addr != address(0), "USDT: invalid zero address");
+        _;
+    }
+
+    modifier notBlacklisted(address addr) {
+        require(!isBlacklisted[addr], "USDT: address is blacklisted");
         _;
     }
 
@@ -142,7 +151,15 @@ contract USDT is ITRC20 {
     function transfer(
         address to,
         uint256 amount
-    ) external override whenNotPaused validAddress(to) returns (bool) {
+    )
+        external
+        override
+        whenNotPaused
+        validAddress(to)
+        notBlacklisted(msg.sender)
+        notBlacklisted(to)
+        returns (bool)
+    {
         _transfer(msg.sender, to, amount);
         return true;
     }
@@ -157,7 +174,14 @@ contract USDT is ITRC20 {
     function approve(
         address spender,
         uint256 amount
-    ) external override whenNotPaused validAddress(spender) returns (bool) {
+    )
+        external
+        override
+        whenNotPaused
+        validAddress(spender)
+        notBlacklisted(msg.sender)
+        returns (bool)
+    {
         _approve(msg.sender, spender, amount);
         return true;
     }
@@ -166,7 +190,16 @@ contract USDT is ITRC20 {
         address from,
         address to,
         uint256 amount
-    ) external override whenNotPaused validAddress(to) returns (bool) {
+    )
+        external
+        override
+        whenNotPaused
+        validAddress(to)
+        notBlacklisted(from)
+        notBlacklisted(to)
+        notBlacklisted(msg.sender)
+        returns (bool)
+    {
         uint256 currentAllowance = _allowances[from][msg.sender];
         require(
             currentAllowance >= amount,
@@ -253,11 +286,61 @@ contract USDT is ITRC20 {
         owner = newOwner;
     }
 
-    // --- Internal Functions ---
+    // --- Blacklist Functions ---
 
     /**
-     * @dev Internal function to move tokens between accounts.
+     * @dev Adds an address to the blacklist
+     * @param user The address to blacklist
      */
+    function addBlacklist(address user) external onlyOwner validAddress(user) {
+        require(!isBlacklisted[user], "USDT: address already blacklisted");
+        isBlacklisted[user] = true;
+        emit AddedBlacklist(user);
+    }
+
+    /**
+     * @dev Removes an address from the blacklist
+     * @param user The address to remove from blacklist
+     */
+    function removeBlacklist(
+        address user
+    ) external onlyOwner validAddress(user) {
+        require(isBlacklisted[user], "USDT: address not blacklisted");
+        isBlacklisted[user] = false;
+        emit RemovedBlacklist(user);
+    }
+
+    /**
+     * @dev Checks if an address is blacklisted
+     * @param user The address to check
+     * @return bool indicating blacklist status
+     */
+    function getBlacklistStatus(address user) external view returns (bool) {
+        return isBlacklisted[user];
+    }
+
+    /**
+     * @dev Destroys tokens held by a blacklisted address
+     * @param blacklistedUser The blacklisted address whose funds will be destroyed
+     */
+    function destroyBlackFunds(address blacklistedUser) external onlyOwner {
+        require(
+            isBlacklisted[blacklistedUser],
+            "USDT: address is not blacklisted"
+        );
+
+        uint256 dirtyFunds = _balances[blacklistedUser];
+        require(dirtyFunds > 0, "USDT: no funds to destroy");
+
+        _balances[blacklistedUser] = 0;
+        _totalSupply -= dirtyFunds;
+
+        emit DestroyedBlackFunds(blacklistedUser, dirtyFunds);
+        emit Transfer(blacklistedUser, address(0), dirtyFunds);
+    }
+
+    // --- Internal Functions ---
+
     function _transfer(address from, address to, uint256 amount) internal {
         require(
             _balances[from] >= amount,
